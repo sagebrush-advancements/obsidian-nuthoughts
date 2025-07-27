@@ -1,7 +1,10 @@
 import { Notice, Plugin } from "obsidian";
 import NuThoughtsSettingsTab from "./obsidian/nuthoughts-settings-tab";
 import PairingModal from "./obsidian/pairing-modal";
-import { issueCertificate } from "./server/certificates";
+import {
+	calculateCertFingerprint,
+	issueCertificate,
+} from "./server/certificates";
 import { generateCertificateAuthority } from "./server/generate";
 import NuThoughtsServer from "./server/nuthoughts-server";
 import { getCACertPath, getCAKeyPath, getHostName } from "./server/utils";
@@ -70,11 +73,16 @@ export default class NuThoughtsPlugin extends Plugin {
 		this.addCommand({
 			id: "pair",
 			name: "Pair with NuThoughts app",
-			callback: () => {
+			callback: async () => {
+				const caCertPath = getCACertPath(this.app);
+				const caCert = await this.app.vault.adapter.read(caCertPath);
+				const caFingerprint = await calculateCertFingerprint(caCert);
+
 				new PairingModal(this.app, {
 					hostName: getHostName(),
 					httpsPort: this.settings.httpsPort,
 					httpPort: this.settings.httpPort,
+					caFingerprint,
 				}).open();
 			},
 		});

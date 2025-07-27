@@ -6,18 +6,25 @@ export default class PairingModal extends Modal {
 	hostName: string;
 	httpsPort: number;
 	httpPort: number;
+	caFingerprint: string;
 
 	constructor(
 		app: App,
-		data: { hostName: string; httpsPort: number; httpPort: number }
+		data: {
+			hostName: string;
+			httpsPort: number;
+			httpPort: number;
+			caFingerprint: string;
+		}
 	) {
 		super(app);
 
-		const { hostName, httpsPort, httpPort } = data;
+		const { hostName, httpsPort, httpPort, caFingerprint } = data;
 		this.app = app;
 		this.hostName = hostName;
 		this.httpsPort = httpsPort;
 		this.httpPort = httpPort;
+		this.caFingerprint = caFingerprint;
 	}
 
 	onOpen(): void {
@@ -53,6 +60,7 @@ export default class PairingModal extends Modal {
 					hostName: this.hostName,
 					httpsPort: this.httpsPort,
 					httpPort: this.httpPort,
+					caFingerprint: this.caFingerprint,
 				}),
 				{
 					scale: 8,

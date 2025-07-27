@@ -2,9 +2,10 @@ import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import { exec } from "child_process";
 
+import { calculateCertFingerprint } from "src/server/certificates";
 import { generateCertificateAuthority } from "src/server/generate";
 import NuThoughtsPlugin from "../main";
-import { getHostName, getPluginPath } from "../server/utils";
+import { getCACertPath, getHostName, getPluginPath } from "../server/utils";
 import PairingModal from "./pairing-modal";
 
 export default class NuThoughtsSettingsTab extends PluginSettingTab {
@@ -40,10 +41,17 @@ export default class NuThoughtsSettingsTab extends PluginSettingTab {
 			)
 			.addButton((btn) =>
 				btn.setButtonText("Pair").onClick(async () => {
+					const caCertPath = getCACertPath(this.app);
+					const caCert = await this.app.vault.adapter.read(
+						caCertPath
+					);
+					const fingerprint = await calculateCertFingerprint(caCert);
+
 					new PairingModal(this.app, {
 						hostName: getHostName(),
 						httpsPort: this.plugin.settings.httpsPort,
 						httpPort: this.plugin.settings.httpPort,
+						caFingerprint: fingerprint,
 					}).open();
 				})
 			);

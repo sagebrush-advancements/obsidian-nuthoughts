@@ -3,6 +3,21 @@ import * as forge from "node-forge";
 const RSA_KEY_SIZE = 4096;
 const CA_COMMON_NAME = "NuThoughts";
 
+export const calculateCertFingerprint = async (
+	certPem: string
+): Promise<string> => {
+	// Remove PEM headers and whitespace
+	const certData = certPem
+		.replace(/-----BEGIN CERTIFICATE-----/, "")
+		.replace(/-----END CERTIFICATE-----/, "")
+		.replace(/\s/g, "");
+
+	// Convert to binary, hash, and encode back to base64
+	const certBinary = base64ToUint8Array(certData);
+	const hashBuffer = await crypto.subtle.digest("SHA-256", certBinary);
+	return uint8ArrayToBase64(new Uint8Array(hashBuffer));
+};
+
 //Creates a certificate authority
 export const createCertificateAuthority = () => {
 	// Generate a keypair
@@ -121,4 +136,21 @@ export const issueCertificate = (
 	const privateKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
 
 	return { privateKey: privateKeyPem, certificate: certPem };
+};
+
+const base64ToUint8Array = (base64: string): Uint8Array => {
+	const binaryString = atob(base64);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) {
+		bytes[i] = binaryString.charCodeAt(i);
+	}
+	return bytes;
+};
+
+const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+	let binary = "";
+	for (let i = 0; i < bytes.length; i++) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	return btoa(binary);
 };

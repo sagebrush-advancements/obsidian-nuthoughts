@@ -3,6 +3,7 @@ import http from "http";
 import https from "https";
 import { App } from "obsidian";
 import { NuThoughtsSettings } from "../types";
+import { calculateCertFingerprint } from "./certificates";
 import { handlePostThought } from "./routes/post-thought";
 import { getCACertPath } from "./utils";
 
@@ -46,8 +47,9 @@ export default class NuThoughtsServer {
 	}
 
 	private createHttpServer(obsidianApp: App, port: number) {
-		// HTTP Server (for CA cert access only)
 		const httpApp = express();
+		httpApp.use(express.json());
+
 		httpApp.get("/", (_, res: Response) => {
 			res.send("NuThoughts HTTP is running");
 		});
@@ -56,20 +58,19 @@ export default class NuThoughtsServer {
 			try {
 				const certPath = getCACertPath(obsidianApp);
 				const cert = await obsidianApp.vault.adapter.read(certPath);
+				const fingerprint = await calculateCertFingerprint(cert);
 
-				res.setHeader("Content-Type", "application/x-pem-file");
-				res.setHeader(
-					"Content-Disposition",
-					'attachment; filename="ca-cert.pem"'
-				);
-				res.send(cert);
+				res.send({
+					cert,
+					fingerprint,
+				});
 			} catch (err) {
 				console.error("Failed to read certificate:", err);
 				res.status(500).send("Internal Server Error");
 			}
 		});
 
-		this.httpServer = express().listen(port + 1);
+		this.httpServer = httpApp.listen(port);
 	}
 
 	private createHttpsServer(
