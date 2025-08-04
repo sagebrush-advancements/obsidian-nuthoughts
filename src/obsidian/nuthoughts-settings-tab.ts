@@ -51,7 +51,7 @@ export default class NuThoughtsSettingsTab extends PluginSettingTab {
 					const { port } = this.plugin.settings;
 
 					new PairingModal(this.app, {
-						hostName,
+						host: hostName,
 						port,
 						cert,
 						certFingerprint,

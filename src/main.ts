@@ -79,7 +79,7 @@ export default class NuThoughtsPlugin extends Plugin {
 				const { port } = this.settings;
 
 				new PairingModal(this.app, {
-					hostName,
+					host: hostName,
 					port,
 					cert,
 					certFingerprint,

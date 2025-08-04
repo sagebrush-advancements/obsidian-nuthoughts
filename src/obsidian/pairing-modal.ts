@@ -4,7 +4,7 @@ import HttpServer from "src/server/http-server";
 
 export default class PairingModal extends Modal {
 	app: App;
-	hostName: string;
+	host: string;
 	port: number;
 	cert: string;
 	certFingerprint: string;
@@ -13,7 +13,7 @@ export default class PairingModal extends Modal {
 	constructor(
 		app: App,
 		data: {
-			hostName: string;
+			host: string;
 			port: number;
 			cert: string;
 			certFingerprint: string;
@@ -21,9 +21,9 @@ export default class PairingModal extends Modal {
 	) {
 		super(app);
 
-		const { hostName, port, cert, certFingerprint } = data;
+		const { host, port, cert, certFingerprint } = data;
 		this.app = app;
-		this.hostName = hostName;
+		this.host = host;
 		this.port = port;
 		this.cert = cert;
 		this.certFingerprint = certFingerprint;
@@ -60,7 +60,7 @@ export default class PairingModal extends Modal {
 			QRCode.toCanvas(
 				canvas,
 				JSON.stringify({
-					hostName: this.hostName,
+					host: this.host,
 					port: this.port,
 					certPort: this.port + 1,
 					certFingerprint: this.certFingerprint,
@@ -81,7 +81,7 @@ export default class PairingModal extends Modal {
 			);
 
 			this.httpServer.start(this.app, {
-				host: this.hostName,
+				host: this.host,
 				port: this.port + 1,
 			});
 		} catch (error) {
