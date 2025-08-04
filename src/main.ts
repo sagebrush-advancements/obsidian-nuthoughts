@@ -1,19 +1,15 @@
 import { Notice, Plugin } from "obsidian";
 import NuThoughtsSettingsTab from "./obsidian/nuthoughts-settings-tab";
 import PairingModal from "./obsidian/pairing-modal";
-import {
-	calculateCertFingerprint,
-	issueCertificate,
-} from "./server/certificates";
 import { generateCertificateAuthority } from "./server/generate";
-import NuThoughtsServer from "./server/nuthoughts-server";
-import { getCACertPath, getCAKeyPath, getHostName } from "./server/utils";
+import HttpsServer from "./server/https-server";
+import { calculateCertFingerprint } from "./server/tls";
+import { getCertKeyPath, getCertPath, getHostName } from "./server/utils";
 import { NuThoughtsSettings } from "./types";
 
 const DEFAULT_SETTINGS: NuThoughtsSettings = {
 	shouldRunOnStartup: true,
-	httpsPort: 8123,
-	httpPort: 8124,
+	port: 8123,
 	saveFolder: "",
 	shouldDebug: true,
 };
@@ -22,10 +18,10 @@ export default class NuThoughtsPlugin extends Plugin {
 	settings: NuThoughtsSettings;
 	serverStatusBarEl: HTMLElement;
 	isServerRunning: boolean;
-	server: NuThoughtsServer;
+	server: HttpsServer;
 
 	async onload() {
-		this.server = new NuThoughtsServer();
+		this.server = new HttpsServer();
 
 		await this.loadSettings();
 
@@ -74,15 +70,19 @@ export default class NuThoughtsPlugin extends Plugin {
 			id: "pair",
 			name: "Pair with NuThoughts app",
 			callback: async () => {
-				const caCertPath = getCACertPath(this.app);
-				const caCert = await this.app.vault.adapter.read(caCertPath);
-				const caFingerprint = await calculateCertFingerprint(caCert);
+				const certPath = getCertPath(this.app);
+				const cert = await this.app.vault.adapter.read(certPath);
+				const certFingerprint = await calculateCertFingerprint(cert);
+
+				const hostName = getHostName();
+
+				const { port } = this.settings;
 
 				new PairingModal(this.app, {
-					hostName: getHostName(),
-					httpsPort: this.settings.httpsPort,
-					httpPort: this.settings.httpPort,
-					caFingerprint,
+					hostName,
+					port,
+					cert,
+					certFingerprint,
 				}).open();
 			},
 		});
@@ -94,32 +94,32 @@ export default class NuThoughtsPlugin extends Plugin {
 			return;
 		}
 
-		let caCert: string | null = null;
-		let caKey: string | null = null;
+		let cert: string | null = null;
+		let certKey: string | null = null;
 
 		try {
-			const caKeyPath = getCAKeyPath(this.app);
-			const caCertPath = getCACertPath(this.app);
+			const certKeyPath = getCertKeyPath(this.app);
+			const certPath = getCertPath(this.app);
 
-			caCert = await this.app.vault.adapter.read(caCertPath);
-			caKey = await this.app.vault.adapter.read(caKeyPath);
+			cert = await this.app.vault.adapter.read(certPath);
+			certKey = await this.app.vault.adapter.read(certKeyPath);
 		} catch (error) {
 			let canContinue = false;
 			if (error instanceof Error) {
 				if (error.message.includes("ENOENT")) {
 					console.log(
-						"Certificate authority files not found. Generating new ones..."
+						"Self-signed certificate not found. Generating new one..."
 					);
 					try {
 						const result = await generateCertificateAuthority(
 							this.app
 						);
-						caCert = result.certificate;
-						caKey = result.privateKey;
+						cert = result.certificate;
+						certKey = result.privateKey;
 						canContinue = true;
 					} catch (generateError) {
 						console.error(
-							"Failed to generate certificate authority:",
+							"Failed to generate self-signed certificate:",
 							generateError
 						);
 					}
@@ -127,37 +127,27 @@ export default class NuThoughtsPlugin extends Plugin {
 			}
 			if (!canContinue) {
 				new Notice(
-					"Failed to start NuThoughts server. Failed to generate certificate authority."
+					"Failed to start NuThoughts server. Failed to generate self-signed certificate."
 				);
 				return;
 			}
 		}
 
-		if (!caCert || !caKey) {
+		if (!cert || !certKey) {
 			new Notice(
-				"Failed to start NuThoughts server. Certificate authority files not found."
+				"Failed to start NuThoughts server. Self-signed certificate not found."
 			);
 			return;
 		}
 
+		const { port } = this.settings;
+
 		const hostName = getHostName();
-
-		//Issue a new certificate for the server
-		//each time the server is started
-		const issuedCert = issueCertificate(
-			hostName,
-			[hostName, "localhost"],
-			caKey,
-			caCert
-		);
-
-		const { httpsPort, httpPort } = this.settings;
 		const result = await this.server.start(this.app, this.settings, {
 			host: hostName,
-			httpsPort,
-			httpPort,
-			tlsCertificate: issuedCert.certificate,
-			tlsPrivateKey: issuedCert.privateKey,
+			port,
+			tlsCertificate: cert,
+			tlsPrivateKey: certKey,
 		});
 		if (!result) return;
 

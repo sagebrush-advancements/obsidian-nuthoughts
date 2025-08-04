@@ -14,20 +14,20 @@ export const getPluginPath = (app: App, absolutePath = false) => {
 	return pluginPath;
 };
 
-export const getCAKeyPath = (app: App) => {
-	const CA_KEY_FILE_NAME = "caPrivateKey.pem";
+export const getCertKeyPath = (app: App) => {
+	const FILE_NAME = "key.pem";
 
 	const pluginPath = getPluginPath(app);
-	const caKeyPath = path.join(pluginPath, CA_KEY_FILE_NAME);
-	return caKeyPath;
+	const keyPath = path.join(pluginPath, FILE_NAME);
+	return keyPath;
 };
 
-export const getCACertPath = (app: App) => {
-	const CA_CERT_FILE_NAME = "caCert.pem";
+export const getCertPath = (app: App) => {
+	const FILE_NAME = "cert.pem";
 
 	const pluginPath = getPluginPath(app);
-	const caCertPath = path.join(pluginPath, CA_CERT_FILE_NAME);
-	return caCertPath;
+	const certPath = path.join(pluginPath, FILE_NAME);
+	return certPath;
 };
 
 const getVaultPath = (app: App) => {

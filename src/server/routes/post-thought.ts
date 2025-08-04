@@ -1,35 +1,45 @@
 import { NextFunction, Request, Response } from "express";
-import { validateFields } from "../validation";
 import { moment } from "obsidian";
+import { validateFields } from "../validation";
 
 import * as path from "path";
 
 import { App } from "obsidian";
-import { Thought } from "./types";
 import { NuThoughtsSettings } from "../../types";
+import { Thought } from "./types";
 
-export const handlePostThought = async (req: Request, res: Response, next: NextFunction, obsidianApp: App, settings: NuThoughtsSettings) => {
-	const { creationTime, text } = req.body;
+export const postThought = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+	{
+		obsidianApp,
+		settings,
+	}: {
+		obsidianApp: App;
+		settings: NuThoughtsSettings;
+	}
+) => {
+	const { createdAt, content } = req.body;
 
-	if (creationTime === undefined) {
-		next("Missing field: creationTime");
+	if (createdAt === undefined) {
+		next("Missing field: createdAt");
 		return;
-	} else if (text === undefined) {
-		next("Missing field: text");
+	} else if (content === undefined) {
+		next("Missing field: content");
 		return;
 	}
-
 
 	try {
 		validateFields([
 			{
-				name: "creationTime",
-				value: creationTime,
+				name: "createdAt",
+				value: createdAt,
 				expectedType: "number",
 			},
 			{
-				name: "text",
-				value: text,
+				name: "content",
+				value: content,
 				expectedType: "string",
 			},
 		]);
@@ -41,32 +51,43 @@ export const handlePostThought = async (req: Request, res: Response, next: NextF
 	const { saveFolder, shouldDebug } = settings;
 
 	if (shouldDebug) {
-		console.log("Received thought:", creationTime, text);
+		console.log("Received thought:", createdAt, content);
 	}
 
-	const filePath = await saveThought(obsidianApp, saveFolder, {
-		creationTime,
-		text,
-	}, next);
+	const filePath = await saveThought(
+		obsidianApp,
+		saveFolder,
+		{
+			createdAt,
+			content,
+		},
+		next
+	);
 	if (filePath === null) {
 		return;
 	}
 
 	res.status(201).json({ message: `Thought saved: ${filePath}` });
-}
+};
 
-const saveThought = async (obsidianApp: App, saveFolder: string, thought: Thought, next: NextFunction) => {
-	const { creationTime, text } = thought;
+const saveThought = async (
+	obsidianApp: App,
+	saveFolder: string,
+	thought: Thought,
+	next: NextFunction
+) => {
+	const { createdAt, content } = thought;
 
-	const fileName = `nuthought-${creationTime}.md`;
+	const fileName = `nuthought-${createdAt}.md`;
 	const filePath = path.join(saveFolder, fileName);
-	const data = getFrontmatter(creationTime) + "\n" + text;
+	const data = getFrontmatter(createdAt) + "\n" + content;
 
 	try {
 		const folderExists = await obsidianApp.vault.adapter.exists(saveFolder);
 		if (!folderExists) {
 			await obsidianApp.vault.createFolder(saveFolder);
 		}
+
 		await obsidianApp.vault.create(filePath, data);
 		return filePath;
 	} catch (err: unknown) {
@@ -84,9 +105,9 @@ const getFrontmatter = (creationTime: number) => {
 	lines.push(`creation: ${dateTime}`);
 	lines.push("---");
 	return lines.join("\n");
-}
+};
 
 const getDateTime = (creationTime: number) => {
 	const momentDate = moment(creationTime);
 	return momentDate.format("YYYY-MM-DDTHH:mm:ss");
-}
+};

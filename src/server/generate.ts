@@ -1,12 +1,13 @@
 import { App } from "obsidian";
-import { createCertificateAuthority } from "./certificates";
-import { getCACertPath, getCAKeyPath } from "./utils";
+import { createSelfSignedCertificate } from "./tls";
+import { getCertKeyPath, getCertPath, getHostName } from "./utils";
 
 export const generateCertificateAuthority = async (app: App) => {
-	const result = createCertificateAuthority();
+	const hostName = getHostName();
+	const result = createSelfSignedCertificate(hostName);
 
-	const caCertPath = getCACertPath(app);
-	const privateKeyPath = getCAKeyPath(app);
+	const caCertPath = getCertPath(app);
+	const privateKeyPath = getCertKeyPath(app);
 
 	await app.vault.adapter.write(caCertPath, result.certificate);
 	await app.vault.adapter.write(privateKeyPath, result.privateKey);

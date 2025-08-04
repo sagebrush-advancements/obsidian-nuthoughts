@@ -1,6 +1,5 @@
 export interface NuThoughtsSettings {
-	httpsPort: number;
-	httpPort: number;
+	port: number;
 	shouldRunOnStartup: boolean;
 	saveFolder: string;
 	shouldDebug: boolean;

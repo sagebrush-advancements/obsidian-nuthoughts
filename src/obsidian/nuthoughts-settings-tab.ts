@@ -2,10 +2,10 @@ import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import { exec } from "child_process";
 
-import { calculateCertFingerprint } from "src/server/certificates";
 import { generateCertificateAuthority } from "src/server/generate";
+import { calculateCertFingerprint } from "src/server/tls";
 import NuThoughtsPlugin from "../main";
-import { getCACertPath, getHostName, getPluginPath } from "../server/utils";
+import { getCertPath, getHostName, getPluginPath } from "../server/utils";
 import PairingModal from "./pairing-modal";
 
 export default class NuThoughtsSettingsTab extends PluginSettingTab {
@@ -41,17 +41,20 @@ export default class NuThoughtsSettingsTab extends PluginSettingTab {
 			)
 			.addButton((btn) =>
 				btn.setButtonText("Pair").onClick(async () => {
-					const caCertPath = getCACertPath(this.app);
-					const caCert = await this.app.vault.adapter.read(
-						caCertPath
+					const certPath = getCertPath(this.app);
+					const cert = await this.app.vault.adapter.read(certPath);
+					const certFingerprint = await calculateCertFingerprint(
+						cert
 					);
-					const fingerprint = await calculateCertFingerprint(caCert);
+
+					const hostName = getHostName();
+					const { port } = this.plugin.settings;
 
 					new PairingModal(this.app, {
-						hostName: getHostName(),
-						httpsPort: this.plugin.settings.httpsPort,
-						httpPort: this.plugin.settings.httpPort,
-						caFingerprint: fingerprint,
+						hostName,
+						port,
+						cert,
+						certFingerprint,
 					}).open();
 				})
 			);
@@ -59,25 +62,13 @@ export default class NuThoughtsSettingsTab extends PluginSettingTab {
 		new Setting(containerEl).setHeading().setName("Server");
 
 		new Setting(containerEl)
-			.setName("HTTPS port")
+			.setName("Port")
 			.setDesc("The port to run the server on. Defaults to 8123")
 			.addText((text) =>
 				text
-					.setValue(this.plugin.settings.httpsPort.toString())
+					.setValue(this.plugin.settings.port.toString())
 					.onChange(async (value) => {
-						this.plugin.settings.httpsPort = Number(value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("HTTP port")
-			.setDesc("The port to run the CA cert server on. Defaults to 8124")
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.httpPort.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.httpPort = Number(value);
+						this.plugin.settings.port = Number(value);
 						await this.plugin.saveSettings();
 					})
 			);
@@ -120,9 +111,9 @@ export default class NuThoughtsSettingsTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Regenerate CA certificate")
+			.setName("Regenerate self-signed certificate")
 			.setDesc(
-				"Regenerates a new certificate authority certificate and private key"
+				"Regenerates a new self-signed certificate. This will invalidate any existing pairings."
 			)
 			.addButton((btn) =>
 				btn.setButtonText("Regenerate").onClick(async () => {
@@ -130,7 +121,7 @@ export default class NuThoughtsSettingsTab extends PluginSettingTab {
 						await generateCertificateAuthority(this.app);
 						const pluginPath = getPluginPath(this.app, true);
 						new Notice(
-							`Generated certificate authority at: ${pluginPath}`
+							`Generated self-signed certificate at: ${pluginPath}`
 						);
 					} catch (err) {
 						console.error(err);

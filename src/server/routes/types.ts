@@ -1,4 +1,4 @@
 export type Thought = {
-	creationTime: number;
-	text: string;
+	createdAt: number;
+	content: string;
 };

@@ -1,30 +1,33 @@
 import { App, Modal } from "obsidian";
 import QRCode from "qrcode";
+import HttpServer from "src/server/http-server";
 
 export default class PairingModal extends Modal {
 	app: App;
 	hostName: string;
-	httpsPort: number;
-	httpPort: number;
-	caFingerprint: string;
+	port: number;
+	cert: string;
+	certFingerprint: string;
+	httpServer: HttpServer;
 
 	constructor(
 		app: App,
 		data: {
 			hostName: string;
-			httpsPort: number;
-			httpPort: number;
-			caFingerprint: string;
+			port: number;
+			cert: string;
+			certFingerprint: string;
 		}
 	) {
 		super(app);
 
-		const { hostName, httpsPort, httpPort, caFingerprint } = data;
+		const { hostName, port, cert, certFingerprint } = data;
 		this.app = app;
 		this.hostName = hostName;
-		this.httpsPort = httpsPort;
-		this.httpPort = httpPort;
-		this.caFingerprint = caFingerprint;
+		this.port = port;
+		this.cert = cert;
+		this.certFingerprint = certFingerprint;
+		this.httpServer = new HttpServer();
 	}
 
 	onOpen(): void {
@@ -58,9 +61,9 @@ export default class PairingModal extends Modal {
 				canvas,
 				JSON.stringify({
 					hostName: this.hostName,
-					httpsPort: this.httpsPort,
-					httpPort: this.httpPort,
-					caFingerprint: this.caFingerprint,
+					port: this.port,
+					certPort: this.port + 1,
+					certFingerprint: this.certFingerprint,
 				}),
 				{
 					scale: 8,
@@ -76,6 +79,11 @@ export default class PairingModal extends Modal {
 					}
 				}
 			);
+
+			this.httpServer.start(this.app, {
+				host: this.hostName,
+				port: this.port + 1,
+			});
 		} catch (error) {
 			console.error("QR code library not available:", error);
 			qrContainer.createEl("p", {
@@ -87,5 +95,6 @@ export default class PairingModal extends Modal {
 	onClose(): void {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.httpServer.close();
 	}
 }

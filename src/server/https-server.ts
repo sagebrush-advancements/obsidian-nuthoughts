@@ -1,43 +1,33 @@
 import express, { NextFunction, Request, Response } from "express";
-import http from "http";
 import https from "https";
 import { App } from "obsidian";
 import { NuThoughtsSettings } from "../types";
-import { calculateCertFingerprint } from "./certificates";
-import { handlePostThought } from "./routes/post-thought";
-import { getCACertPath } from "./utils";
+import { postThought } from "./routes/post-thought";
 
-export default class NuThoughtsServer {
+export default class HttpsServer {
 	httpsServer: https.Server | null = null;
-	httpServer: http.Server | null = null;
 
 	async start(
 		obsidianApp: App,
 		settings: NuThoughtsSettings,
 		options: {
 			host: string;
-			httpsPort: number;
-			httpPort: number;
+			port: number;
 			tlsCertificate: string;
 			tlsPrivateKey: string;
 		}
 	) {
-		const { host, httpsPort, httpPort, tlsCertificate, tlsPrivateKey } =
-			options;
+		const { host, port, tlsCertificate, tlsPrivateKey } = options;
 
 		try {
 			this.createHttpsServer(obsidianApp, settings, {
 				tlsCertificate,
 				tlsPrivateKey,
-				port: httpsPort,
+				port,
 			});
-			this.createHttpServer(obsidianApp, httpPort);
 
 			console.log(
-				`NuThoughts HTTPS listening at: https://${host}:${httpsPort}`
-			);
-			console.log(
-				`NuThoughts HTTP (CA cert only) listening at: http://${host}:${httpPort}`
+				`NuThoughts (HTTP) listening at: https://${host}:${port}`
 			);
 			return true;
 		} catch (err) {
@@ -46,31 +36,11 @@ export default class NuThoughtsServer {
 		}
 	}
 
-	private createHttpServer(obsidianApp: App, port: number) {
-		const httpApp = express();
-		httpApp.use(express.json());
-
-		httpApp.get("/", (_, res: Response) => {
-			res.send("NuThoughts HTTP is running");
-		});
-
-		httpApp.get("/ca-cert", async (_, res) => {
-			try {
-				const certPath = getCACertPath(obsidianApp);
-				const cert = await obsidianApp.vault.adapter.read(certPath);
-				const fingerprint = await calculateCertFingerprint(cert);
-
-				res.send({
-					cert,
-					fingerprint,
-				});
-			} catch (err) {
-				console.error("Failed to read certificate:", err);
-				res.status(500).send("Internal Server Error");
-			}
-		});
-
-		this.httpServer = httpApp.listen(port);
+	close() {
+		if (this.httpsServer) {
+			this.httpsServer.close();
+			this.httpsServer = null;
+		}
 	}
 
 	private createHttpsServer(
@@ -92,7 +62,7 @@ export default class NuThoughtsServer {
 		});
 
 		httpsApp.post("/thought", async (req, res, next) =>
-			handlePostThought(req, res, next, obsidianApp, settings)
+			postThought(req, res, next, { obsidianApp, settings })
 		);
 
 		httpsApp.use(
@@ -122,16 +92,5 @@ export default class NuThoughtsServer {
 		this.httpsServer = https
 			.createServer(httpsOptions, httpsApp)
 			.listen(port);
-	}
-
-	close() {
-		if (this.httpsServer) {
-			this.httpsServer.close();
-			this.httpsServer = null;
-		}
-		if (this.httpServer) {
-			this.httpServer.close();
-			this.httpServer = null;
-		}
 	}
 }
