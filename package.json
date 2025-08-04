@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-nuthoughts",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"description": "NuThoughts server for Obsidian",
 	"main": "main.js",
 	"scripts": {
