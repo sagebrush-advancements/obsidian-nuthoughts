@@ -8,6 +8,7 @@
     "allowJs": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
+    "types": ["node"],
     "importHelpers": true,
     "isolatedModules": true,
 	"strictNullChecks": true,
@@ -21,5 +22,8 @@
   },
   "include": [
     "**/*.ts"
+  ],
+  "exclude": [
+    "test"
   ]
 }

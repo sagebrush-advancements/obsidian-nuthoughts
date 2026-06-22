@@ -139,7 +139,7 @@ const saveThought = async (
 	}
 };
 
-const getFrontmatter = (
+export const getFrontmatter = (
 	creationTime: number,
 	project: string | null | undefined,
 	frontmatter: FrontmatterItem[] | undefined
@@ -155,7 +155,7 @@ const getFrontmatter = (
 	return `---\n${stringifyYaml(fm)}---`;
 };
 
-const convertValue = (item: FrontmatterItem): unknown => {
+export const convertValue = (item: FrontmatterItem): unknown => {
 	switch (item.type) {
 		case "checkbox":
 			return item.value === "true";
@@ -171,7 +171,7 @@ const convertValue = (item: FrontmatterItem): unknown => {
 	}
 };
 
-const isValidFrontmatter = (value: unknown): value is FrontmatterItem[] => {
+export const isValidFrontmatter = (value: unknown): value is FrontmatterItem[] => {
 	if (!Array.isArray(value)) {
 		return false;
 	}
@@ -185,7 +185,7 @@ const isValidFrontmatter = (value: unknown): value is FrontmatterItem[] => {
 	);
 };
 
-const getDateTime = (creationTime: number) => {
+export const getDateTime = (creationTime: number) => {
 	const momentDate = moment(creationTime);
 	return momentDate.format("YYYY-MM-DDTHH:mm:ss");
 };
