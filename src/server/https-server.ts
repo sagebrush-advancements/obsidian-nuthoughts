@@ -31,7 +31,7 @@ export default class HttpsServer {
 			);
 			return true;
 		} catch (err) {
-			console.error(`Error starting Nuthoughts server: ${err}`);
+			console.error(`Error starting server: ${err}`);
 			return false;
 		}
 	}
@@ -55,7 +55,14 @@ export default class HttpsServer {
 		const { tlsCertificate, tlsPrivateKey, port } = options;
 
 		const httpsApp = express();
-		httpsApp.use(express.json());
+		httpsApp.use(
+			express.json({
+				verify: (req, _res, buf) => {
+					(req as Request & { rawBody?: string }).rawBody =
+						buf.toString();
+				},
+			})
+		);
 
 		httpsApp.get("/", (_, res: Response) => {
 			res.send("NuThoughts HTTPS is running");
@@ -76,7 +83,7 @@ export default class HttpsServer {
 				if (typeof err === "string") {
 					res.status(400).json({ error: err });
 				} else {
-					console.error(err); // Log the error stack to your console for debugging
+					console.error("Server error:", err); // Log the error stack to your console for debugging
 					res.status(500).json({
 						error: "Internal server error",
 					});

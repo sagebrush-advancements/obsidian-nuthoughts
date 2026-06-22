@@ -20,12 +20,28 @@ export const postThought = async (
 		settings: NuThoughtsSettings;
 	}
 ) => {
+	const { saveFolder, shouldDebug } = settings;
+
+	if (shouldDebug) {
+		console.log(`POST ${req.path}`);
+		console.log(
+			"Raw payload:",
+			(req as Request & { rawBody?: string }).rawBody ?? "(empty)"
+		);
+		console.log(
+			"Parsed payload:",
+			JSON.stringify(req.body, null, 2)
+		);
+	}
+
 	const { createdAt, content, project, frontmatter } = req.body;
 
 	if (createdAt === undefined) {
+		if (shouldDebug) console.log("Validation failed: missing createdAt");
 		next("Missing field: createdAt");
 		return;
 	} else if (content === undefined) {
+		if (shouldDebug) console.log("Validation failed: missing content");
 		next("Missing field: content");
 		return;
 	}
@@ -44,6 +60,7 @@ export const postThought = async (
 			},
 		]);
 	} catch (err) {
+		if (shouldDebug) console.log("Validation failed:", err);
 		next(err);
 		return;
 	}
@@ -53,21 +70,23 @@ export const postThought = async (
 		project !== null &&
 		typeof project !== "string"
 	) {
+		if (shouldDebug)
+			console.log("Validation failed: project must be a string or null");
 		next("Invalid field: project must be a string or null");
 		return;
 	}
 
 	if (frontmatter !== undefined && !isValidFrontmatter(frontmatter)) {
+		if (shouldDebug)
+			console.log("Validation failed: invalid frontmatter");
 		next(
 			"Invalid field: frontmatter must be an array of { key, value, type } strings"
 		);
 		return;
 	}
 
-	const { saveFolder, shouldDebug } = settings;
-
 	if (shouldDebug) {
-		console.log("Received thought:", createdAt, content, project, frontmatter);
+		console.log("Validation passed");
 	}
 
 	const filePath = await saveThought(
@@ -83,6 +102,10 @@ export const postThought = async (
 	);
 	if (filePath === null) {
 		return;
+	}
+
+	if (shouldDebug) {
+		console.log("Saved thought:", filePath);
 	}
 
 	res.status(201).json({ message: `Thought saved: ${filePath}` });
