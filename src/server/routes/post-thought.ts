@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from "express";
-import { moment } from "obsidian";
+import { moment, stringifyYaml } from "obsidian";
 import { validateFields } from "../validation";
 
 import * as path from "path";
 
 import { App } from "obsidian";
 import { NuThoughtsSettings } from "../../types";
-import { Thought } from "./types";
+import { FrontmatterItem, Thought } from "./types";
 
 export const postThought = async (
 	req: Request,
@@ -20,7 +20,7 @@ export const postThought = async (
 		settings: NuThoughtsSettings;
 	}
 ) => {
-	const { createdAt, content } = req.body;
+	const { createdAt, content, project, frontmatter } = req.body;
 
 	if (createdAt === undefined) {
 		next("Missing field: createdAt");
@@ -48,10 +48,26 @@ export const postThought = async (
 		return;
 	}
 
+	if (
+		project !== undefined &&
+		project !== null &&
+		typeof project !== "string"
+	) {
+		next("Invalid field: project must be a string or null");
+		return;
+	}
+
+	if (frontmatter !== undefined && !isValidFrontmatter(frontmatter)) {
+		next(
+			"Invalid field: frontmatter must be an array of { key, value, type } strings"
+		);
+		return;
+	}
+
 	const { saveFolder, shouldDebug } = settings;
 
 	if (shouldDebug) {
-		console.log("Received thought:", createdAt, content);
+		console.log("Received thought:", createdAt, content, project, frontmatter);
 	}
 
 	const filePath = await saveThought(
@@ -60,6 +76,8 @@ export const postThought = async (
 		{
 			createdAt,
 			content,
+			project,
+			frontmatter,
 		},
 		next
 	);
@@ -76,11 +94,11 @@ const saveThought = async (
 	thought: Thought,
 	next: NextFunction
 ) => {
-	const { createdAt, content } = thought;
+	const { createdAt, content, project, frontmatter } = thought;
 
 	const fileName = `nuthought-${createdAt}.md`;
 	const filePath = path.join(saveFolder, fileName);
-	const data = getFrontmatter(createdAt) + "\n" + content;
+	const data = getFrontmatter(createdAt, project, frontmatter) + "\n" + content;
 
 	try {
 		const folderExists = await obsidianApp.vault.adapter.exists(saveFolder);
@@ -98,13 +116,50 @@ const saveThought = async (
 	}
 };
 
-const getFrontmatter = (creationTime: number) => {
-	const dateTime = getDateTime(creationTime);
-	const lines: string[] = [];
-	lines.push("---");
-	lines.push(`creation: ${dateTime}`);
-	lines.push("---");
-	return lines.join("\n");
+const getFrontmatter = (
+	creationTime: number,
+	project: string | null | undefined,
+	frontmatter: FrontmatterItem[] | undefined
+) => {
+	const fm: Record<string, unknown> = {};
+	fm.creation = getDateTime(creationTime);
+	if (project) {
+		fm.project = project;
+	}
+	for (const item of frontmatter ?? []) {
+		fm[item.key] = convertValue(item);
+	}
+	return `---\n${stringifyYaml(fm)}---`;
+};
+
+const convertValue = (item: FrontmatterItem): unknown => {
+	switch (item.type) {
+		case "checkbox":
+			return item.value === "true";
+		case "list":
+		case "tags":
+			return item.value
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean);
+		case "text":
+		default:
+			return item.value;
+	}
+};
+
+const isValidFrontmatter = (value: unknown): value is FrontmatterItem[] => {
+	if (!Array.isArray(value)) {
+		return false;
+	}
+	return value.every(
+		(item) =>
+			item !== null &&
+			typeof item === "object" &&
+			typeof item.key === "string" &&
+			typeof item.value === "string" &&
+			typeof item.type === "string"
+	);
 };
 
 const getDateTime = (creationTime: number) => {
