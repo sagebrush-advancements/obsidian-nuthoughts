@@ -1,7 +1,7 @@
 {
 	"id": "nuthoughts",
 	"name": "NuThoughts",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"minAppVersion": "1.11.0",
 	"description": "NuThoughts server for Obsidian",
 	"author": "Sagebrush Advancements",
